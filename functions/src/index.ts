@@ -141,7 +141,8 @@ exports.deletePost = functions.firestore.document('/posts/{id}')
                             imageUri: post.imageUri,
                             type: "wishlist",
                             usersFollowing: post.usersFollowing.length,
-                            seen : false
+                            seen : false,
+                            postID: postID
                         };
                        return admin.firestore().collection("users").doc(userID).collection("notifications")
                         .add(notification).then(added => {
