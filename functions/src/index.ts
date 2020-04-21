@@ -109,7 +109,7 @@ exports.deletePost = functions.firestore.document('/posts/{id}')
     exports.createWishlist = functions.firestore.document('/wishlist/{id}')
     .onCreate((snapshot, context) => {
         const snapshotData = snapshot.data();
-        if(snapshotData != undefined){
+        if(snapshotData !== undefined){
             const userWhoWishlisted = snapshotData.userID;
             const postID = snapshotData.postID;
             console.log("User who wishlisted: "+userWhoWishlisted);
@@ -121,7 +121,7 @@ exports.deletePost = functions.firestore.document('/posts/{id}')
             timestamp = snapshotData.timestamp;
             console.log("timestamp "+ timestamp);
             let post: {date: string, description: string, imageUri: string,
-            postID: string, price: number, title: string, user: {}, userID: string, usersFollowing: [],
+            postID: string, price: number, title: string, user: {}, userID: string, usersFollowing: string[],
             valute: string };
             post = snapshotData.post;
             const userID = post.userID;
@@ -129,7 +129,7 @@ exports.deletePost = functions.firestore.document('/posts/{id}')
             return admin.firestore().collection("users").doc(userWhoWishlisted)
                 .get().then(document => {
                     const userData = document.data();
-                    if(userData!=undefined){
+                    if(userData!==undefined){
                         const username = userData.firstName+" "+userData.lastName;
                         const notification = {
                             from: userWhoWishlisted,
@@ -138,16 +138,35 @@ exports.deletePost = functions.firestore.document('/posts/{id}')
                             timestamp: timestamp,
                             title: post.title,
                             username: username,
-                            imageUri: post.imageUri
+                            imageUri: post.imageUri,
+                            type: "wishlist",
+                            usersFollowing: post.usersFollowing.length,
+                            seen : false
                         };
                        return admin.firestore().collection("users").doc(userID).collection("notifications")
-                        .add(notification);
+                        .add(notification).then(added => {
+                            return admin.firestore().collection("users").doc(userID).collection("infos")
+                            .doc(userID).get().then(doc => {
+                                console.log("making info")
+                                const infos = doc.data();
+                                if(infos!==undefined){
+                                    console.log("updating info, adding new notification");
+                                    let count: number;
+                                    count = infos.unseenCount;
+                                    count = count+1;
+                                    return admin.firestore().collection("users").doc(userID).collection("infos")
+                                    .doc(userID).set({unseenCount: count});
+                                }else{
+                                    console.log("creating info, adding new notification");
+                                    const count: number = 1;
+                                    return admin.firestore().collection("users").doc(userID).collection("infos")
+                                    .doc(userID).set({unseenCount: count});
+                                }
+                            });
+                        });
                     }
                     return null;
                 });
-      /*  admin.firestore().collection("users").doc(userID).collection('notifications')
-        .add(notification);*/
-            return null;
         }
         return null;
 
