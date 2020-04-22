@@ -21,8 +21,6 @@ exports.updatePost = functions.firestore
             array.push({...change.after.data(), name: 'copy of change'});
             console.log('copy of new value: ' + array[0]);
         }
-       
-            //const favRef = admin.firestore().collection('wishlist').doc(String(userID)+id);
             
             const promises: any[] = [];
             const favRef = admin.firestore().collection("wishlist").where("postID","==" ,id);
@@ -145,7 +143,7 @@ exports.deletePost = functions.firestore.document('/posts/{id}')
                             postID: postID
                         };
                        return admin.firestore().collection("users").doc(userID).collection("notifications")
-                        .add(notification).then(added => {
+                       .doc(postID).set(notification).then(added => {
                             return admin.firestore().collection("users").doc(userID).collection("infos")
                             .doc(userID).get().then(doc => {
                                 console.log("making info")
@@ -173,97 +171,34 @@ exports.deletePost = functions.firestore.document('/posts/{id}')
 
     });
 
-
-/*
-exports.updateMessages = functions.firestore.document('/MessagesSplitCollection/{id}')
-    .onUpdate((change, context) => {
-        const id: string =  context.params.id;
-        const messages = change.after.data()
-        let array: { date: string, from: string, message: string, time: string, to: string}[];
-        if(messages !== undefined){
-             array = messages.messages;
-             const newMessage = array[array.length-1];
-             const from = array[array.length-1].from;
-             const to = array[array.length-1].to;
-             console.log("to " +to);
-             console.log("from "+ from);
-             //imamo to, treba da odemo u njegov chat i postavimo broj novih poruka
-             //from se postavlja na nulu broj novih
-             //salje se u oba chata, treba da se vidi ciji je post da bi se znalo u kojoj kolekciji je chat
-            //let postUserId: string;
-            let otherUserId: string;
-            let postID: string;
-             if(id.includes(to)){
-                console.log("found postUserID it is from");
-                const index = id.indexOf(to);
-                postID = id.substring(0, index);
-                console.log("postID is "+postID);
-                //postUserId = from;
-                otherUserId = to;
-            } else {
-                console.log("found postUserID it is to");
-                const index = id.indexOf(from);
-                postID = id.substring(0, index);
-                console.log("postID is "+postID);
-                //postUserId = to;
-                otherUserId = from;
-            }
-
-             return admin.firestore().collection('chats').doc(otherUserId).get()
-                .then(documentSnapshot => {
-
-                    let chats: {date: string, imageUri:string, otherUserID: string,
-                    otherUserName: string; postID: string, postTitle: string, postUserID: string,
-                postUserName: string, recentText: { date: string, from: string, 
-                    message: string, time: string, to: string}, users:string[], newMessages: number}[];
-                   
-                    const documentSnapshotData = documentSnapshot.data();
-
-                        if(documentSnapshotData !== undefined){
-                            chats = documentSnapshotData.chats;
-                            let newMessagesTotal = documentSnapshotData.newMessages;
-                            const indexOfChat = chats.findIndex(x => x.postID === postID);
-                            if(indexOfChat !== -1){
-                                console.log("chat in array of chats")
-                                //onda chat vec postoji u nizu chatova
-                                const newChat = chats[indexOfChat];
-                                //ako je poruka od to usera, nema vise novih, u suprotnom plus jedna
-                                if(from === otherUserId){
-                                    newMessagesTotal = newMessagesTotal - newChat.newMessages;
-                                    newChat.newMessages = 0;
-
-                                }else {
-                                    console.log("adding messages");
-                                    newMessagesTotal = newMessagesTotal + 1;
-                                    newChat.newMessages = newChat.newMessages+1;
-                                }
-                                newChat.recentText = newMessage;
-                                const firstSlice = chats.slice(0, indexOfChat);
-                                const secondSlice = chats.slice(indexOfChat+1, chats.length-1);
-                                const newArray = [];
-                                newArray.push(newChat);
-                                const newArrayForDucument = newArray.concat(firstSlice).concat(secondSlice);
-                                
-                                const newDocument = {
-                                    chats: newArrayForDucument,
-                                    newMessages: newMessagesTotal
-                                };
-                                return admin.firestore().collection('chats').doc(otherUserId)
-                                .set(newDocument);
-
-                            }else {
-                                //chat ne postoji u nizu chatova
-                                return null;
+    exports.createNotification = functions.firestore.document('users/{id}/notifications/{notID}')
+    .onCreate((snapshot, context) => {
+            console.log("notification is added");
+            const notificationData = snapshot.data();
+            if(notificationData!==undefined){
+                const userID = context.params.id;
+                const postID = context.params.notID;
+                console.log("userID "+userID);
+                console.log("postID" + postID);
+                return admin.firestore().collection("tokens").doc(userID).get()
+                .then(token => {
+                    const tokenData = token.data();
+                    if(tokenData!==undefined){
+                        const tokenID = tokenData.token;
+                        const payload= {
+                            data: {
+                                title: "New notification"
+                            },
+                            notification: {
+                                title: "New user is following one of your posts"
                             }
+                        };
+                        return admin.messaging().sendToDevice(tokenID, payload);
                     }else {
-                        //treba napraviti chat
                         return null;
                     }
-                })
-            
-             
-        }
-        return null;
-    });*/
+                });
+            }
+            return null;
 
-
+    });
